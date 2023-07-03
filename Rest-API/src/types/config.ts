@@ -6,6 +6,6 @@ export interface IRuntime {
 }
 
 export interface IEnvironments {
-	staging?: IRuntime;
-	production?: IRuntime;
+	environment: Record<'staging' | 'production', IRuntime>;
+	envToExport: IRuntime;
 }

@@ -42,11 +42,11 @@ type TDeleteFn = (
 ) => void;
 
 export interface ILib {
-	baseDir?: string;
-	create?: TCreateFn;
-	read?: TReadFn;
-	update?: TUpdateFn;
-	delete?: TDeleteFn;
+	baseDir: string;
+	create: TCreateFn;
+	read: TReadFn;
+	update: TUpdateFn;
+	delete: TDeleteFn;
 }
 
 export interface IHelpers {

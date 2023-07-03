@@ -1,4 +1,11 @@
-import { IncomingHttpHeaders } from 'http';
+import {
+	IncomingHttpHeaders,
+	IncomingMessage,
+	RequestListener,
+	Server,
+	ServerResponse,
+} from 'http';
+import { ServerOptions } from 'https';
 import { ParsedUrlQuery } from 'querystring';
 
 interface IPayloadData {
@@ -29,7 +36,7 @@ export type RequestMethods = 'post' | 'get' | 'put' | 'delete';
 
 type VerifyToken = (id: string, phone: string, callback: (err: string | boolean) => void) => void;
 
-export type RouteHandlers = 'ping' | 'notFound' | 'users';
+export type RouteHandlers = 'ping' | 'notFound' | 'users' | 'tokens' | 'checks';
 
 export interface IHandlers {
 	ping?: HandlersFunction;
@@ -41,4 +48,12 @@ export interface IHandlers {
 	_checks?: Record<RequestMethods, HandlersFunction>;
 	_tokens?: Record<RequestMethods, HandlersFunction>;
 	_verifyToken?: VerifyToken;
+}
+
+export interface IHttpServer {
+	httpsServerOptions: ServerOptions;
+	httpServer: Server<typeof IncomingMessage, typeof ServerResponse>;
+	httpServers: Server<typeof IncomingMessage, typeof ServerResponse>;
+	unifiedServer: RequestListener;
+	router: IHandlers;
 }
