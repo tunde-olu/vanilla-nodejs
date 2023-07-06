@@ -15,6 +15,11 @@ interface IPayloadData {
 	password?: string;
 	id?: string;
 	extend?: boolean;
+	url?: string;
+	method?: RequestMethods;
+	successCodes: number[];
+	timeoutSeconds: number;
+	protocol: 'http' | 'https';
 	tosAgreement?: boolean;
 }
 
@@ -44,10 +49,6 @@ export interface IHandlers {
 	users?: HandlersFunction;
 	tokens?: HandlersFunction;
 	checks?: HandlersFunction;
-	_users?: Record<RequestMethods, HandlersFunction>;
-	_checks?: Record<RequestMethods, HandlersFunction>;
-	_tokens?: Record<RequestMethods, HandlersFunction>;
-	_verifyToken?: VerifyToken;
 }
 
 export interface IHttpServer {

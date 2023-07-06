@@ -6,7 +6,18 @@ export interface IUserDataObject {
 	phone?: string;
 	hashedPassword?: string;
 	password?: string;
+	checks?: string[];
 	tosAgreement?: boolean;
+}
+
+export interface IChecksDataObject {
+	id: string;
+	phone: string;
+	protocol: string;
+	url: string;
+	method: string;
+	successCodes: number[];
+	timeoutSeconds: number;
 }
 
 export interface ITokenDataObject {
@@ -53,4 +64,9 @@ export interface IHelpers {
 	hash?: (str: string) => boolean | string;
 	parseJsonToObject?: (str: string) => any;
 	createRandomString?: (str: number | boolean) => boolean | string;
+}
+
+export interface IAsyncResponse {
+	code: number;
+	message: string;
 }

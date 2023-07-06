@@ -3,6 +3,12 @@ export interface IRuntime {
 	httpsPort: number;
 	envName: string;
 	hashingSecret: string;
+	maxChecks: number;
+	twilio: {
+		fromPhone: string;
+		accountSid: string;
+		authToken: string;
+	};
 }
 
 export interface IEnvironments {

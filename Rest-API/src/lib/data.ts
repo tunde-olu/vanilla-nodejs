@@ -8,6 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import type { ILib, ITokenDataObject, IUserDataObject, TFsError } from '../types/lib.js';
 import helpers from './helpers.js';
+import FileSystemError from '../error/fileSystemError.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,7 +37,7 @@ export class Lib implements ILib {
 		return Lib._instance;
 	}
 
-	create(
+	public create(
 		dir: string,
 		file: string,
 		data: any,
@@ -69,7 +70,7 @@ export class Lib implements ILib {
 		});
 	}
 
-	async read(
+	public async read(
 		dir: string,
 		file: string,
 		callback: (
@@ -95,7 +96,7 @@ export class Lib implements ILib {
 		}
 	}
 
-	async update(
+	public async update(
 		dir: string,
 		file: string,
 		data: any,
@@ -129,12 +130,42 @@ export class Lib implements ILib {
 		}
 	}
 
-	async delete(dir: string, file: string, callback: (err: string | boolean | TFsError) => void) {
+	public async delete(
+		dir: string,
+		file: string,
+		callback: (err: string | boolean | TFsError) => void
+	) {
 		try {
 			await fsPromises.unlink(this.baseDir + dir + '/' + file + '.json');
 			callback(false);
 		} catch (error) {
 			callback(error as string);
+		}
+	}
+
+	/**
+	 * List all the items in a director
+	 */
+	public async list(dir: string) {
+		try {
+			const folder = await fsPromises.readdir(this.baseDir + '/' + dir);
+			const trimmedFilesName: string[] = [];
+
+			if (folder && folder.length > 0) {
+				folder.forEach((file) => {
+					trimmedFilesName.push(file.replace('.json', ''));
+				});
+			} else {
+				throw 'Error: Folder is empty, could not find any check to process';
+			}
+
+			return trimmedFilesName;
+		} catch (error) {
+			const err = error as FileSystemError;
+			if (err.code === 'ENOENT') {
+				throw `Directory "${dir}" does not exit`;
+			}
+			throw (error as Error).message || error;
 		}
 	}
 }
