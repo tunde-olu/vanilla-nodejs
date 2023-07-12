@@ -1,10 +1,10 @@
 class FileSystemError extends Error {
 	constructor(
-		public errno: number,
-		public code: 'ENOENT',
-		public syscall: string,
-		public path: string,
-		public message: string
+		public message: string,
+		public code?: 'ENOENT' | string,
+		public syscall?: string,
+		public path?: string,
+		public errno?: number
 	) {
 		super(message);
 	}

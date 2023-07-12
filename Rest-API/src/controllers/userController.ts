@@ -272,20 +272,28 @@ class UserController implements Record<RequestMethods, HandlersFunction> {
 															: !!err;
 													}
 													checksDeleted++;
+
 													if (checksDeleted === checksToDelete) {
 														if (deletionErrors) {
 															callback(500, {
 																Error: "Errors encountered while attempting to delete all of the user's checks. All checks may not have been deleted from the system successfully",
 															});
+														} else {
+															callback(200, {
+																status: 'Success',
+																message:
+																	'User successfully deleted',
+															});
 														}
 													}
 												});
 											});
+										} else {
+											callback(200, {
+												status: 'Success',
+												message: 'User successfully deleted',
+											});
 										}
-										callback(200, {
-											status: 'Success',
-											message: 'User successfully deleted',
-										});
 									} else {
 										callback(500, {
 											Error: 'Something went wrong, could not delete the specified user',

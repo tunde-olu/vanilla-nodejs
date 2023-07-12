@@ -4,6 +4,9 @@ export interface IRuntime {
 	envName: string;
 	hashingSecret: string;
 	maxChecks: number;
+	templateGlobals: {
+		[index: string]: string;
+	};
 	twilio: {
 		fromPhone: string;
 		accountSid: string;

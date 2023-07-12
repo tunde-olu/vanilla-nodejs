@@ -18,6 +18,8 @@ export interface IChecksDataObject {
 	method: string;
 	successCodes: number[];
 	timeoutSeconds: number;
+	state: 'up' | 'down';
+	lastChecked: number;
 }
 
 export interface ITokenDataObject {
@@ -69,4 +71,9 @@ export interface IHelpers {
 export interface IAsyncResponse {
 	code: number;
 	message: string;
+}
+
+export interface ICheckOutcome {
+	error: { error: boolean; value: string } | boolean;
+	responseCode: number | boolean;
 }

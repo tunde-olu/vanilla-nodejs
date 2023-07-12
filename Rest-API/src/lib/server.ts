@@ -11,8 +11,15 @@ import fs from 'fs';
 import path from 'path';
 import handlers from './handlers.js';
 import helpers from './helpers.js';
+import { debuglog } from 'node:util';
 
-import type { IHandlers, HandlersFunction, RouteHandlers, IHttpServer } from '../types/index.js';
+import type {
+	IHandlers,
+	HandlersFunction,
+	RouteHandlers,
+	IHttpServer,
+	IRoutes,
+} from '../types/index.js';
 import type { ServerOptions } from 'https';
 import type { IRuntime } from '../types/config.js';
 import type { IncomingMessage, ServerResponse, Server } from 'http';
@@ -20,12 +27,18 @@ import type { IncomingMessage, ServerResponse, Server } from 'http';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// HTTPS keys and cert
+const key = fs.readFileSync(path.join(__dirname, '../https/key.pem'));
+const cert = fs.readFileSync(path.join(__dirname, '../https/cert.pem'));
+
+const debug = debuglog('server');
+
 class HttpServer implements IHttpServer {
 	private static _instance: HttpServer;
 
-	router: IHandlers;
+	router: IRoutes;
 	public httpServer: Server<typeof IncomingMessage, typeof ServerResponse>;
-	public httpServers: Server<typeof IncomingMessage, typeof ServerResponse>;
+	public httpsServer: Server<typeof IncomingMessage, typeof ServerResponse>;
 
 	public httpsServerOptions: ServerOptions;
 
@@ -35,11 +48,24 @@ class HttpServer implements IHttpServer {
 		}
 
 		this.router = {
+			'': handlers.index,
 			ping: handlers.ping,
 			notFound: handlers.notFound,
-			users: handlers.users,
-			tokens: handlers.tokens,
-			checks: handlers.checks,
+			'api/users': handlers.users,
+			'api/tokens': handlers.tokens,
+			'api/checks': handlers.checks,
+			'account/create': handlers.accountCreate,
+			'account/edit': handlers.accountEdit,
+			'account/deleted': handlers.accountDeleted,
+			'session/create': handlers.sessionCreate,
+			'session/deleted': handlers.sessionDeleted,
+			'checks/all': handlers.checksList,
+			'checks/create': handlers.checkCreate,
+			'checks/edit': handlers.checksEdit,
+			'favicon.ico': handlers.favicon,
+			// public: handlers.public,
+			// @ts-ignore
+			public: handlers.public,
 		};
 
 		this.httpServer = createServer((req, res) => {
@@ -47,11 +73,11 @@ class HttpServer implements IHttpServer {
 		});
 
 		this.httpsServerOptions = {
-			key: fs.readFileSync(path.join(__dirname, '../https/key.pem')),
-			cert: fs.readFileSync(path.join(__dirname, '../https/cert.pem')),
+			key,
+			cert,
 		};
 
-		this.httpServers = createServer(this.httpsServerOptions, (req, res) => {
+		this.httpsServer = createServer(this.httpsServerOptions, (req, res) => {
 			this.unifiedServer(req, res);
 		});
 	}
@@ -69,11 +95,9 @@ class HttpServer implements IHttpServer {
 		// Get the URL and parse it
 		const parsedUrl = parse(req.url as string, true);
 
-		console.log(parsedUrl);
-
 		// Get the path
 		const path = parsedUrl.pathname;
-		const trimmedPath = path!.replace(/^\/+|\/+$/g, '');
+		const trimmedPath = path?.replace(/^\/+|\/+$/g, '');
 
 		// Get the query string as an object
 		const queryStringObject = parsedUrl.query;
@@ -93,15 +117,19 @@ class HttpServer implements IHttpServer {
 		});
 
 		req.on('end', () => {
+			// TODO: check if buffer += is needed
 			buffer += decoder.end();
 
 			// Choose an handler this request should go to
 			// If one is not found, choose the notFound handler
-			const chosenHandler: HandlersFunction | undefined =
-				typeof this.router[trimmedPath as keyof Pick<IHandlers, RouteHandlers>] !==
+			let chosenHandler: HandlersFunction | undefined =
+				typeof this.router[trimmedPath as keyof Pick<IRoutes, RouteHandlers>] !==
 				'undefined'
-					? this.router[trimmedPath as keyof Pick<IHandlers, RouteHandlers>]
+					? this.router[trimmedPath as keyof Pick<IRoutes, RouteHandlers>]
 					: this.router.notFound;
+
+			// If the request is within the public, use the public handler instead
+			chosenHandler = trimmedPath?.startsWith('public/') ? handlers.public : chosenHandler;
 
 			// Construct the data object to send to the handler
 			const data = {
@@ -113,24 +141,77 @@ class HttpServer implements IHttpServer {
 			};
 
 			// Route the request to the handler specified in the router
-			chosenHandler!(data, (statusCode, payload) => {
+			chosenHandler!(data, (statusCode, payload, contentType) => {
+				// Determine the type of response (fallback to JSON)
+				contentType = typeof contentType === 'string' ? contentType : 'json';
+
 				// Use the status code callback by the handler, or default to 200
 				statusCode = typeof statusCode === 'number' ? statusCode : 200;
 
-				// Use the payload callback by the handler, or default to an empty object;
-				payload = typeof payload === 'object' ? payload : {};
+				// Return the response parts that are content-specific
+				let payloadString: unknown = '';
 
-				// Convert the payload to a string
-				const payloadString = JSON.stringify(payload);
+				// Return the response-parts that are common to all content-types
+				if (contentType === 'json') {
+					res.setHeader('Content-Type', 'application/json');
+					// Use the payload callback by the handler, or default to an empty object;
+					payload = typeof payload === 'object' ? payload : {};
+					// Convert the payload to a string
+					payloadString = JSON.stringify(payload);
+				}
+				if (contentType === 'html') {
+					res.setHeader('Content-Type', 'text/html');
+					payloadString = typeof payload === 'string' ? payload : '';
+				}
 
-				// Return the response
-				res.setHeader('Content-Type', 'application/json');
+				if (contentType === 'favicon') {
+					res.setHeader('Content-Type', 'image/x-icon');
+					payloadString = typeof payload === 'string' ? payload : '';
+				}
+
+				if (contentType === 'css') {
+					res.setHeader('Content-Type', 'text/css');
+					payloadString = typeof payload !== 'undefined' ? payload : '';
+				}
+
+				if (contentType === 'png') {
+					res.setHeader('Content-Type', 'image/png');
+					payloadString = typeof payload !== 'undefined' ? payload : '';
+				}
+
+				if (contentType === 'jpg') {
+					res.setHeader('Content-Type', 'image/jpeg');
+					payloadString = typeof payload !== 'undefined' ? payload : '';
+				}
+
+				if (contentType === 'plain') {
+					res.setHeader('Content-Type', 'text/plain');
+					payloadString = typeof payload !== 'undefined' ? payload : '';
+				}
+
 				res.writeHead(statusCode);
-				res.end(payloadString);
+				res.write(payloadString);
+				res.end();
 
 				// Log the request path
-				console.dir({ statusCode, path: trimmedPath, payload: payloadString });
-				// console.log(`Returning this response:`, statusCode, payloadString);
+				// debug('\x1b[32m%s\x1b[0m', {
+				// 	statusCode,
+				// 	path: trimmedPath,
+				// 	payload: payloadString,
+				// });
+
+				// If the response is 200, print green otherwise print red
+				if (statusCode === 200 || statusCode === 201) {
+					debug(
+						'\x1b[32m%s\x1b[0m',
+						(method?.toUpperCase() as string) + ' /' + trimmedPath + ' ' + statusCode
+					);
+				} else {
+					debug(
+						'\x1b[31m%s\x1b[0m',
+						(method?.toUpperCase() as string) + ' /' + trimmedPath + ' ' + statusCode
+					);
+				}
 			});
 		});
 	}
@@ -139,6 +220,7 @@ class HttpServer implements IHttpServer {
 	listen(config: IRuntime) {
 		this.httpServer.listen(config.httpPort, () => {
 			console.log(
+				'\x1b[33m%s\x1b[0m',
 				`The server is listening on port ${config.httpPort} in ${config.envName} mode`
 			);
 		});

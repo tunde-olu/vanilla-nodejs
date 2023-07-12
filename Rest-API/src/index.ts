@@ -4,6 +4,7 @@
 
 import server from './lib/server.js';
 import workers from './lib/workers.js';
+import cli from './lib/cli.js';
 
 class App {
 	private static _instance: App;
@@ -25,6 +26,11 @@ class App {
 
 		// Start the workers
 		workers.init();
+
+		// Start the CLI (last)
+		setImmediate(() => {
+			cli.init();
+		});
 	}
 }
 

@@ -8,7 +8,12 @@ import type {
 	ICallbackData,
 	RequestMethods,
 } from '../types/index.js';
-import type { IChecksDataObject, IUserDataObject, TFsError } from '../types/lib.js';
+import type {
+	IChecksDataObject,
+	ITokenDataObject,
+	IUserDataObject,
+	TFsError,
+} from '../types/lib.js';
 
 class ChecksController implements Record<RequestMethods, HandlersFunction> {
 	private static _instance: ChecksController;
@@ -82,10 +87,11 @@ class ChecksController implements Record<RequestMethods, HandlersFunction> {
 
 			// Lookup the user by reading the token
 			_data.read('tokens', token as string, (err, data) => {
+				const tokenData = data as ITokenDataObject;
 				if (!err) {
-					const phone = data?.phone;
+					const phone = tokenData.phone;
 
-					// Lookup the user data
+					// Lookup the user tokenData
 					_data.read('users', phone as string, (err, data) => {
 						const userData: IUserDataObject = data as IUserDataObject;
 						if (!err) {
@@ -198,14 +204,18 @@ class ChecksController implements Record<RequestMethods, HandlersFunction> {
 
 					// Verify that the given token is valid and belongs to the user who created the check
 					if (token) {
-						helpers.verifyToken(token, checkData.phone as string, (isTokenValid) => {
-							if (isTokenValid) {
-								// Return the check data
-								callback(200, checkData);
-							} else {
-								callback(403, { Error: 'Token is invalid' });
+						helpers.verifyToken(
+							token,
+							(checkData as IChecksDataObject).phone as string,
+							(isTokenValid) => {
+								if (isTokenValid) {
+									// Return the check data
+									callback(200, checkData);
+								} else {
+									callback(403, { Error: 'Token is invalid' });
+								}
 							}
-						});
+						);
 					} else {
 						callback(403, { Error: 'Missing Bearer token in Authorization header' });
 					}
@@ -434,7 +444,7 @@ class ChecksController implements Record<RequestMethods, HandlersFunction> {
 						callback(404, { Error: 'The specified check ID does not exist' });
 					} else {
 						callback(500, {
-							Error: 'Something went wrong, could not delete the specified token',
+							Error: 'Something went wrong, could not delete the specified check',
 						});
 					}
 				}

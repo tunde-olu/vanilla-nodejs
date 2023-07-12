@@ -11,6 +11,8 @@ class Environments implements IEnvironments {
 
 	public environment: Record<'staging' | 'production', IRuntime>;
 
+	public templateGlobals: object;
+
 	public envToExport: IRuntime;
 
 	private constructor() {
@@ -30,6 +32,12 @@ class Environments implements IEnvironments {
 					authToken: '9455e3eb3109edc12e3d8c92768f7a67',
 					fromPhone: '+15005550006',
 				},
+				templateGlobals: {
+					appName: 'UptimeChecker',
+					companyName: 'NotARealCompany, Inc.',
+					yearCreated: '2023',
+					baseUrl: 'http://localhost:8000/',
+				},
 			},
 			production: {
 				httpPort: 4000,
@@ -42,6 +50,12 @@ class Environments implements IEnvironments {
 					authToken: '9455e3eb3109edc12e3d8c92768f7a67',
 					fromPhone: '+15005550006',
 				},
+				templateGlobals: {
+					appName: 'UptimeChecker',
+					companyName: 'NotARealCompany, Inc.',
+					yearCreated: '2023',
+					baseUrl: 'http://localhost:4000/',
+				},
 			},
 		};
 
@@ -53,6 +67,8 @@ class Environments implements IEnvironments {
 			] === 'object'
 				? this.environment[NODE_ENV as keyof Record<'staging' | 'production', IRuntime>]
 				: this.environment.staging;
+
+		this.templateGlobals = {};
 	}
 
 	public static getInstance(): Environments {

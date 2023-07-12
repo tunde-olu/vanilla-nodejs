@@ -6,7 +6,13 @@ import fs from 'fs';
 import fsPromises, { FileHandle } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import type { ILib, ITokenDataObject, IUserDataObject, TFsError } from '../types/lib.js';
+import type {
+	IChecksDataObject,
+	ILib,
+	ITokenDataObject,
+	IUserDataObject,
+	TFsError,
+} from '../types/lib.js';
 import helpers from './helpers.js';
 import FileSystemError from '../error/fileSystemError.js';
 
@@ -73,10 +79,7 @@ export class Lib implements ILib {
 	public async read(
 		dir: string,
 		file: string,
-		callback: (
-			err: string | boolean | TFsError,
-			data?: IUserDataObject | ITokenDataObject | undefined
-		) => void
+		callback: (err: string | boolean | TFsError, data?: object) => void
 	) {
 		try {
 			const fileToRead = await fsPromises.readFile(
@@ -84,15 +87,18 @@ export class Lib implements ILib {
 				'utf-8'
 			);
 
-			const fileToReadObject = helpers.parseJsonToObject(fileToRead) as IUserDataObject;
+			const fileToReadObject = helpers.parseJsonToObject(fileToRead);
 
 			if (fileToRead && fileToRead.length > 0) {
 				callback(false, fileToReadObject);
 			} else {
 				callback(false, {});
 			}
+
+			return fileToReadObject;
 		} catch (error) {
 			callback(error as string);
+			// throw (error as Error).message || error;
 		}
 	}
 
@@ -139,7 +145,7 @@ export class Lib implements ILib {
 			await fsPromises.unlink(this.baseDir + dir + '/' + file + '.json');
 			callback(false);
 		} catch (error) {
-			callback(error as string);
+			callback(true);
 		}
 	}
 
@@ -147,18 +153,14 @@ export class Lib implements ILib {
 	 * List all the items in a director
 	 */
 	public async list(dir: string) {
+		let self = this;
 		try {
-			const folder = await fsPromises.readdir(this.baseDir + '/' + dir);
+			const folder = await fsPromises.readdir(self.baseDir + '/' + dir);
 			const trimmedFilesName: string[] = [];
 
-			if (folder && folder.length > 0) {
-				folder.forEach((file) => {
-					trimmedFilesName.push(file.replace('.json', ''));
-				});
-			} else {
-				throw 'Error: Folder is empty, could not find any check to process';
-			}
-
+			folder.forEach((file) => {
+				trimmedFilesName.push(file.replace('.json', ''));
+			});
 			return trimmedFilesName;
 		} catch (error) {
 			const err = error as FileSystemError;
