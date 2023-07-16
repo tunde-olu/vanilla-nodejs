@@ -1,5 +1,7 @@
 import _data from '../lib/data.js';
 import helpers from '../lib/helpers.js';
+import { performance } from 'node:perf_hooks';
+import util from 'node:util';
 
 import type {
 	CallbackFn,
@@ -8,6 +10,8 @@ import type {
 	RequestMethods,
 } from '../types/index.js';
 import type { ITokenDataObject, IUserDataObject, TFsError } from '../types/lib.js';
+
+const debug = util.debuglog('performance');
 
 class TokenController implements Record<RequestMethods, HandlersFunction> {
 	private static _instance: TokenController;
@@ -36,6 +40,7 @@ class TokenController implements Record<RequestMethods, HandlersFunction> {
 	 * @param callback
 	 */
 	public post(data: ICallbackData, callback: CallbackFn) {
+		performance.mark('entered function');
 		const phone =
 			typeof data.payload?.phone === 'string' && data.payload.phone.trim().length === 11
 				? data.payload.phone.trim()
@@ -46,15 +51,21 @@ class TokenController implements Record<RequestMethods, HandlersFunction> {
 				? data.payload.password
 				: false;
 
+		performance.mark('input validated');
 		if (phone && password) {
 			// Look up the user who matches the phone number
+			performance.mark('beginning user lookup');
 			_data.read!('users', phone, (err, data) => {
+				performance.mark('user lookup complete');
 				const userData = data as IUserDataObject;
 				if (!err && data) {
 					// Hash the sent password and compare it to the password stored in the usr object
+					performance.mark('beginning password hashing');
 					const hashedPassword = helpers.hash(password);
+					performance.mark('password hashing complete');
 					if (hashedPassword === userData.hashedPassword!) {
 						// If valid, create a new token with a random name. Set expiration dare 1 hour in the future
+						performance.mark('creating data for token');
 						const tokenId = helpers.createRandomString(20);
 
 						const expires = Date.now() + 1000 * 60 * 60;
@@ -64,7 +75,55 @@ class TokenController implements Record<RequestMethods, HandlersFunction> {
 							id: tokenId,
 						};
 						// Store the token
+						performance.mark('beginning storing token');
 						_data.create!('tokens', tokenId as string, tokenObject, (err) => {
+							performance.mark('storing token complete');
+
+							// Gather all the measurements
+							performance.measure(
+								'Beginning to end',
+								'entered function',
+								'storing token complete'
+							);
+
+							performance.measure(
+								'Validating user input',
+								'entered function',
+								'input validated'
+							);
+
+							performance.measure(
+								'User lookup',
+								'beginning user lookup',
+								'user lookup complete'
+							);
+
+							performance.measure(
+								'Password hashing',
+								'beginning password hashing',
+								'password hashing complete'
+							);
+
+							performance.measure(
+								'Token data creation',
+								'creating data for token',
+								'beginning storing token'
+							);
+
+							performance.measure(
+								'Token storing',
+								'beginning storing token',
+								'storing token complete'
+							);
+
+							// Log out all the measurements
+							const measurements = performance.getEntriesByType('measure');
+							measurements.forEach((measurement) => {
+								debug(
+									'\x1b[33m%s\x1b[0m',
+									`${measurement.name} ${measurement.duration}`
+								);
+							});
 							if (!err) {
 								callback(200, tokenObject);
 							} else {

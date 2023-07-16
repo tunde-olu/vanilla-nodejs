@@ -340,8 +340,7 @@ class Workers {
 	// Init script
 	public init() {
 		// Send to console, in yellow
-		debug('\x1b[33m%s\x1b[0m', 'Background workers are running');
-
+		console.log('\x1b[33m%s\x1b[0m', 'Background workers are running');
 		// Execute all the checks immediately
 		this.gatherAllChecks();
 

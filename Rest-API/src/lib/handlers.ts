@@ -383,6 +383,12 @@ class Handlers implements IHandlers {
 	 *
 	 */
 
+	// Example Error
+	public exampleError(data: ICallbackData, callback: CallbackFn) {
+		const err = new Error('This is an example error');
+		throw err;
+	}
+
 	// Users handler
 	public users(data: ICallbackData, callback: CallbackFn) {
 		const acceptableMethods: RequestMethods[] = ['post', 'get', 'put', 'delete'];

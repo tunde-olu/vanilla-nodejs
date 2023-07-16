@@ -651,6 +651,7 @@ var App = /** @class */ (function () {
                         return [3 /*break*/, 3];
                     case 2:
                         error_9 = _a.sent();
+                        console.log(error_9);
                         return [3 /*break*/, 3];
                     case 3: return [2 /*return*/];
                 }

@@ -82,6 +82,7 @@ export interface IRoutes {
 	'api/checks'?: HandlersFunction;
 	'favicon.ico'?: HandlersFunction;
 	public?: HandlersFunction;
+	'examples/error'?: HandlersFunction;
 }
 
 export interface IHandlers {

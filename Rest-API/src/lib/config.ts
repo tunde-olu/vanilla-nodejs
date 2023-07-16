@@ -9,7 +9,7 @@ import type { IEnvironments, IRuntime } from '../types/config.js';
 class Environments implements IEnvironments {
 	private static _instance: Environments;
 
-	public environment: Record<'staging' | 'production', IRuntime>;
+	public environment: Record<'staging' | 'production' | 'testing', IRuntime>;
 
 	public templateGlobals: object;
 
@@ -43,6 +43,25 @@ class Environments implements IEnvironments {
 				httpPort: 4000,
 				httpsPort: 4001,
 				envName: 'production',
+				hashingSecret: 'PapadevThisIsASecret',
+				maxChecks: 5,
+				twilio: {
+					accountSid: 'ACb32d411ad7fe886aac54c665d25e5c5d',
+					authToken: '9455e3eb3109edc12e3d8c92768f7a67',
+					fromPhone: '+15005550006',
+				},
+				templateGlobals: {
+					appName: 'UptimeChecker',
+					companyName: 'NotARealCompany, Inc.',
+					yearCreated: '2023',
+					baseUrl: 'http://localhost:4000/',
+				},
+			},
+
+			testing: {
+				httpPort: 4000,
+				httpsPort: 4001,
+				envName: 'testing',
 				hashingSecret: 'PapadevThisIsASecret',
 				maxChecks: 5,
 				twilio: {

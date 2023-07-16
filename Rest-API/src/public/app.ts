@@ -642,7 +642,9 @@ class App {
 			try {
 				await this.renewToken();
 				console.log('Token renewed successfully @ ' + Date.now());
-			} catch (error) {}
+			} catch (error) {
+				console.log(error);
+			}
 		}, 1000 * 60);
 	}
 

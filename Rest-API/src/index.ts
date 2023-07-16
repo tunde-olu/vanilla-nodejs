@@ -5,6 +5,7 @@
 import server from './lib/server.js';
 import workers from './lib/workers.js';
 import cli from './lib/cli.js';
+import { pathToFileURL } from 'url';
 
 class App {
 	private static _instance: App;
@@ -20,19 +21,29 @@ class App {
 		return this._instance;
 	}
 
-	public async init() {
-		// Start the server
-		server.init();
+	public init() {
+		try {
+			// Start the server
+			server.init();
 
-		// Start the workers
-		workers.init();
+			// Start the workers
+			workers.init();
 
-		// Start the CLI (last)
-		setImmediate(() => {
-			cli.init();
-		});
+			// Start the CLI (last)
+			setImmediate(() => {
+				cli.init();
+			});
+		} catch (error) {
+			throw error;
+		}
 	}
 }
 
 const app = new App();
-app.init();
+
+// Self invoking only if required directly
+if (pathToFileURL(process.argv[1]).href === import.meta.url) {
+	app.init();
+}
+
+export default App.getInstance();

@@ -1,6 +1,7 @@
 import config from '../lib/config.js';
 import _data from '../lib/data.js';
 import helpers from '../lib/helpers.js';
+import dns from 'node:dns';
 
 import type {
 	CallbackFn,
@@ -103,50 +104,68 @@ class ChecksController implements Record<RequestMethods, HandlersFunction> {
 
 							// Verify that the user has less than the number of max-checks-per-user
 							if (userChecks.length < config.maxChecks) {
-								// Create a random id for the check
-								const checkId = helpers.createRandomString(20) as string;
+								// Verify that the URL given has DNS entries (and therefore can resolve)
+								const parseUrl = new URL(protocol + '://' + url);
+								const hostname =
+									typeof parseUrl.hostname === 'string' ? parseUrl.hostname : '';
 
-								// Create the check object and include the user phone
-								const checkObject = {
-									id: checkId,
-									phone,
-									protocol,
-									url,
-									method,
-									successCodes,
-									timeoutSeconds,
-								};
+								dns.resolve(hostname, (err, records) => {
+									if (!err && records) {
+										// Create a random id for the check
+										const checkId = helpers.createRandomString(20) as string;
 
-								// Save the object
-								_data.create('checks', checkId as string, checkObject, (err) => {
-									if (!err) {
-										// Add the checkId to the user's object
-										userData.checks = userChecks;
-										userData.checks.push(checkId);
-										_data.update(
-											'users',
-											phone as string,
-											{ checks: userData.checks },
+										// Create the check object and include the user phone
+										const checkObject = {
+											id: checkId,
+											phone,
+											protocol,
+											url,
+											method,
+											successCodes,
+											timeoutSeconds,
+										};
+
+										// Save the object
+										_data.create(
+											'checks',
+											checkId as string,
+											checkObject,
 											(err) => {
 												if (!err) {
-													callback(200, checkObject);
+													// Add the checkId to the user's object
+													userData.checks = userChecks;
+													userData.checks.push(checkId);
+													_data.update(
+														'users',
+														phone as string,
+														{ checks: userData.checks },
+														(err) => {
+															if (!err) {
+																callback(200, checkObject);
+															} else {
+																callback(500, {
+																	Error: 'Could not update the user with the new check',
+																});
+															}
+														}
+													);
 												} else {
-													callback(500, {
-														Error: 'Could not update the user with the new check',
-													});
+													if ((err as TFsError).code === 'ENOENT') {
+														callback(404, {
+															Error: 'Not storage found',
+														});
+													} else {
+														callback(500, {
+															Error: 'Could not create the new check',
+														});
+													}
 												}
 											}
 										);
 									} else {
-										if ((err as TFsError).code === 'ENOENT') {
-											callback(404, {
-												Error: 'Not storage found',
-											});
-										} else {
-											callback(500, {
-												Error: 'Could not create the new check',
-											});
-										}
+										callback(400, {
+											Error: 'The hostname of the URL entered did not resolve to any DNS entries',
+										});
 									}
 								});
 							} else {

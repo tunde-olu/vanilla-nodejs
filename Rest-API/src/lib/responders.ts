@@ -3,6 +3,7 @@ import v8 from 'node:v8';
 import _data from './data.js';
 import _logs from './logs.js';
 import helpers from './helpers.js';
+import childProcess from 'node:child_process';
 import { IChecksDataObject } from '../types/lib.js';
 
 /**
@@ -278,20 +279,51 @@ class Responders {
 	/**
 	 * List logs
 	 */
+	// public async listLogs(str: string) {
+	// 	try {
+	// 		const logFileNames = await _logs.list(true);
+
+	// 		if (logFileNames.length === 0) {
+	// 			throw 'The system log directory is empty';
+	// 		}
+
+	// 		for (const logFileName of logFileNames) {
+	// 			if (logFileName.includes('-')) {
+	// 				console.log('\x1b[36m%s\x1b[0m', logFileName); // In color cyan
+	// 				formatConsole.verticalSpace();
+	// 			}
+	// 		}
+	// 	} catch (error) {
+	// 		console.log('\x1b[31m%s\x1b[0m', (error as Error).message || error);
+	// 		formatConsole.verticalSpace();
+	// 	}
+	// }
+
 	public async listLogs(str: string) {
 		try {
-			const logFileNames = await _logs.list(true);
+			const ls = childProcess.spawn('ls', ['./src/.logs']);
 
-			if (logFileNames.length === 0) {
-				throw 'The system log directory is empty';
-			}
+			let logFileNames: string[] = [];
 
-			for (const logFileName of logFileNames) {
-				if (logFileName.includes('-')) {
-					console.log('\x1b[36m%s\x1b[0m', logFileName); // In color cyan
-					formatConsole.verticalSpace();
+			ls.stdout.on('data', (dataObject) => {
+				// Explode into separate lines
+				const dataString: string = dataObject.toString();
+
+				logFileNames = dataString.split('\n');
+			});
+
+			ls.stdout.on('end', () => {
+				if (logFileNames.length === 0) {
+					console.log('\x1b[31m%s\x1b[0m', 'The system log directory is empty');
 				}
-			}
+
+				for (const logFileName of logFileNames) {
+					if (typeof logFileName === 'string' && logFileName.includes('-')) {
+						console.log('\x1b[36m%s\x1b[0m', logFileName.trim()?.split('.')[0]); // In color cyan
+						formatConsole.verticalSpace();
+					}
+				}
+			});
 		} catch (error) {
 			console.log('\x1b[31m%s\x1b[0m', (error as Error).message || error);
 			formatConsole.verticalSpace();

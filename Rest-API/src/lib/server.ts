@@ -19,6 +19,7 @@ import type {
 	RouteHandlers,
 	IHttpServer,
 	IRoutes,
+	ICallbackData,
 } from '../types/index.js';
 import type { ServerOptions } from 'https';
 import type { IRuntime } from '../types/config.js';
@@ -63,6 +64,9 @@ class HttpServer implements IHttpServer {
 			'checks/create': handlers.checkCreate,
 			'checks/edit': handlers.checksEdit,
 			'favicon.ico': handlers.favicon,
+
+			// Error example
+			'examples/error': handlers.exampleError,
 			// public: handlers.public,
 			// @ts-ignore
 			public: handlers.public,
@@ -97,13 +101,13 @@ class HttpServer implements IHttpServer {
 
 		// Get the path
 		const path = parsedUrl.pathname;
-		const trimmedPath = path?.replace(/^\/+|\/+$/g, '');
+		const trimmedPath = path?.replace(/^\/+|\/+$/g, '') as string;
 
 		// Get the query string as an object
 		const queryStringObject = parsedUrl.query;
 
 		// Get the HTTP Method
-		const method = req.method?.toLowerCase();
+		const method = req.method?.toLowerCase() as string;
 
 		// Get the headers as an object
 		const headers = req.headers;
@@ -125,8 +129,10 @@ class HttpServer implements IHttpServer {
 			let chosenHandler: HandlersFunction | undefined =
 				typeof this.router[trimmedPath as keyof Pick<IRoutes, RouteHandlers>] !==
 				'undefined'
-					? this.router[trimmedPath as keyof Pick<IRoutes, RouteHandlers>]
-					: this.router.notFound;
+					? (this.router[
+							trimmedPath as keyof Pick<IRoutes, RouteHandlers>
+					  ] as HandlersFunction)
+					: (this.router.notFound as HandlersFunction);
 
 			// If the request is within the public, use the public handler instead
 			chosenHandler = trimmedPath?.startsWith('public/') ? handlers.public : chosenHandler;
@@ -141,86 +147,117 @@ class HttpServer implements IHttpServer {
 			};
 
 			// Route the request to the handler specified in the router
-			chosenHandler!(data, (statusCode, payload, contentType) => {
-				// Determine the type of response (fallback to JSON)
-				contentType = typeof contentType === 'string' ? contentType : 'json';
-
-				// Use the status code callback by the handler, or default to 200
-				statusCode = typeof statusCode === 'number' ? statusCode : 200;
-
-				// Return the response parts that are content-specific
-				let payloadString: unknown = '';
-
-				// Return the response-parts that are common to all content-types
-				if (contentType === 'json') {
-					res.setHeader('Content-Type', 'application/json');
-					// Use the payload callback by the handler, or default to an empty object;
-					payload = typeof payload === 'object' ? payload : {};
-					// Convert the payload to a string
-					payloadString = JSON.stringify(payload);
-				}
-				if (contentType === 'html') {
-					res.setHeader('Content-Type', 'text/html');
-					payloadString = typeof payload === 'string' ? payload : '';
-				}
-
-				if (contentType === 'favicon') {
-					res.setHeader('Content-Type', 'image/x-icon');
-					payloadString = typeof payload === 'string' ? payload : '';
-				}
-
-				if (contentType === 'css') {
-					res.setHeader('Content-Type', 'text/css');
-					payloadString = typeof payload !== 'undefined' ? payload : '';
-				}
-
-				if (contentType === 'png') {
-					res.setHeader('Content-Type', 'image/png');
-					payloadString = typeof payload !== 'undefined' ? payload : '';
-				}
-
-				if (contentType === 'jpg') {
-					res.setHeader('Content-Type', 'image/jpeg');
-					payloadString = typeof payload !== 'undefined' ? payload : '';
-				}
-
-				if (contentType === 'plain') {
-					res.setHeader('Content-Type', 'text/plain');
-					payloadString = typeof payload !== 'undefined' ? payload : '';
-				}
-
-				res.writeHead(statusCode);
-				res.write(payloadString);
-				res.end();
-
-				// Log the request path
-				// debug('\x1b[32m%s\x1b[0m', {
-				// 	statusCode,
-				// 	path: trimmedPath,
-				// 	payload: payloadString,
-				// });
-
-				// If the response is 200, print green otherwise print red
-				if (statusCode === 200 || statusCode === 201) {
-					debug(
-						'\x1b[32m%s\x1b[0m',
-						(method?.toUpperCase() as string) + ' /' + trimmedPath + ' ' + statusCode
+			try {
+				chosenHandler(data, (statusCode, payload, contentType) => {
+					this.processHandlerResponse(
+						res,
+						method,
+						trimmedPath,
+						statusCode!,
+						payload,
+						contentType!
 					);
-				} else {
-					debug(
-						'\x1b[31m%s\x1b[0m',
-						(method?.toUpperCase() as string) + ' /' + trimmedPath + ' ' + statusCode
-					);
-				}
-			});
+				});
+			} catch (error) {
+				debug(error as string);
+				this.processHandlerResponse(
+					res,
+					method,
+					trimmedPath,
+					500,
+					{ Error: 'An unknown error has ocurred' },
+					'json'
+				);
+			}
 		});
+	}
+
+	// Process the response from the handler
+	private processHandlerResponse(
+		res: ServerResponse,
+		method: string,
+		trimmedPath: string,
+		statusCode: number,
+		payload: string | object | ICallbackData | undefined,
+		contentType: string
+	) {
+		// Determine the type of response (fallback to JSON)
+		contentType = typeof contentType === 'string' ? contentType : 'json';
+
+		// Use the status code callback by the handler, or default to 200
+		statusCode = typeof statusCode === 'number' ? statusCode : 200;
+
+		// Return the response parts that are content-specific
+		let payloadString: unknown = '';
+
+		// Return the response-parts that are common to all content-types
+		if (contentType === 'json') {
+			res.setHeader('Content-Type', 'application/json');
+			// Use the payload callback by the handler, or default to an empty object;
+			payload = typeof payload === 'object' ? payload : {};
+			// Convert the payload to a string
+			payloadString = JSON.stringify(payload);
+		}
+		if (contentType === 'html') {
+			res.setHeader('Content-Type', 'text/html');
+			payloadString = typeof payload === 'string' ? payload : '';
+		}
+
+		if (contentType === 'favicon') {
+			res.setHeader('Content-Type', 'image/x-icon');
+			payloadString = typeof payload === 'string' ? payload : '';
+		}
+
+		if (contentType === 'css') {
+			res.setHeader('Content-Type', 'text/css');
+			payloadString = typeof payload !== 'undefined' ? payload : '';
+		}
+
+		if (contentType === 'png') {
+			res.setHeader('Content-Type', 'image/png');
+			payloadString = typeof payload !== 'undefined' ? payload : '';
+		}
+
+		if (contentType === 'jpg') {
+			res.setHeader('Content-Type', 'image/jpeg');
+			payloadString = typeof payload !== 'undefined' ? payload : '';
+		}
+
+		if (contentType === 'plain') {
+			res.setHeader('Content-Type', 'text/plain');
+			payloadString = typeof payload !== 'undefined' ? payload : '';
+		}
+
+		res.writeHead(statusCode);
+		res.write(payloadString);
+		res.end();
+
+		// Log the request path
+		// debug('\x1b[32m%s\x1b[0m', {
+		// 	statusCode,
+		// 	path: trimmedPath,
+		// 	payload: payloadString,
+		// });
+
+		// If the response is 200, print green otherwise print red
+		if (statusCode === 200 || statusCode === 201) {
+			debug(
+				'\x1b[32m%s\x1b[0m',
+				(method?.toUpperCase() as string) + ' /' + trimmedPath + ' ' + statusCode
+			);
+		} else {
+			debug(
+				'\x1b[31m%s\x1b[0m',
+				(method?.toUpperCase() as string) + ' /' + trimmedPath + ' ' + statusCode
+			);
+		}
 	}
 
 	// Server Listening
 	listen(config: IRuntime) {
 		this.httpServer.listen(config.httpPort, () => {
 			console.log(
-				'\x1b[33m%s\x1b[0m',
+				'\x1b[35m%s\x1b[0m',
 				`The server is listening on port ${config.httpPort} in ${config.envName} mode`
 			);
 		});

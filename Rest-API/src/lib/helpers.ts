@@ -30,6 +30,11 @@ class Helpers implements IHelpers {
 		return Helpers._instance;
 	}
 
+	// Sample for testing that simply returns a number
+	public getANumber() {
+		return 1;
+	}
+
 	/**
 	 * Create a SHA256 hash
 	 * @param str
